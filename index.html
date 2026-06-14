@@ -201,15 +201,24 @@
   .ov .hd{position:sticky;top:0;z-index:2;background:var(--surface);font-size:8.5px;color:var(--ink3);text-align:center;height:17px;line-height:17px;}
   .ov .hd.we{color:var(--weekend-ink);}
   .ov .mlab{position:sticky;right:0;z-index:3;background:var(--surface);font-size:10.5px;font-weight:600;color:var(--ink);padding:0 7px;display:flex;align-items:center;white-space:nowrap;border-top:1px solid var(--line);}
-  .ov .oc{height:34px;border-top:1px solid var(--line);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;cursor:pointer;}
-  .ov .oc .n{font-size:10.5px;font-weight:600;color:var(--ink);line-height:1;}
+  .ov .oc{height:44px;border-top:1px solid var(--line);border-right:1px solid var(--line);border-bottom:3px solid transparent;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:3px;position:relative;cursor:pointer;}
+  .ov .oc .n{font-size:11px;font-weight:700;color:var(--ink);line-height:1.05;}
   .ov .oc .g{font-size:7px;color:var(--ink3);line-height:1;margin-top:1px;}
   .ov .oc.we .n{color:var(--weekend-ink);}
-  .ov .oc.today{outline:2px solid var(--accent);outline-offset:-2px;border-radius:7px;}
-  .ov .oc .mk{position:absolute;bottom:2px;display:flex;gap:1.5px;}
-  .ov .oc .mk i{width:4px;height:4px;border-radius:50%;display:block;}
+  .ov .oc.full .n,.ov .oc.full .g{color:#fff;}
+  .ov .oc .mbox{margin-top:auto;margin-bottom:3px;width:15px;height:7px;border-radius:2px;border:1px solid rgba(120,130,150,.45);background:transparent;}
+  .ov .oc.full .mbox{border-color:rgba(255,255,255,.5);}
+  .ov .oc .mbox.filled{border-color:transparent;}
+  .ov .oc.today{outline:2px solid var(--accent);outline-offset:-2px;border-radius:5px;}
   .ov-legend{display:flex;flex-wrap:wrap;gap:8px 12px;margin:12px 6px 0;}
   .ov-legend .lg i{width:11px;height:11px;border-radius:3px;}
+  .ov-legend .lg i.line{height:4px;width:16px;border-radius:2px;}
+  .num-input{width:62px;border:1px solid var(--line);background:var(--surface2);color:var(--ink);font-family:var(--ff);font-size:16px;font-weight:600;text-align:center;padding:9px 6px;border-radius:12px;outline:none;-moz-appearance:textfield;}
+  .num-input::-webkit-outer-spin-button,.num-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+  .num-input:focus{border-color:var(--accent);}
+  .daycount{display:inline-block;margin-top:3px;font-size:11px;font-weight:600;color:var(--accent-ink);background:var(--accent-soft);padding:2px 9px;border-radius:var(--r-pill);}
+  .daycount.past{color:var(--ink3);background:var(--bg2);}
+  .daycount.today{color:#fff;background:var(--accent);}
   .mini{background:var(--surface);border-radius:22px;box-shadow:var(--shadow);padding:12px 9px 11px;cursor:pointer;transition:transform .08s;}
   .mini:active{transform:scale(.97);}
   .mini.cur{outline:2px solid var(--accent);outline-offset:-2px;}
@@ -329,8 +338,16 @@
     <label class="switch"><input type="checkbox" id="optFest" checked><span class="track"><span class="knob"></span></span></label>
   </div>
   <div class="set-row">
-    <div><div class="lab">صرف الرواتب</div><div class="sub">٢٥ ميلادي · يُقدَّم للخميس إن صادف الجمعة/السبت</div></div>
+    <div><div class="lab">صرف الرواتب</div><div class="sub">إظهار يوم الراتب في التقويم</div></div>
     <label class="switch"><input type="checkbox" id="optPay" checked><span class="track"><span class="knob"></span></span></label>
+  </div>
+  <div class="set-row">
+    <div><div class="lab">يوم الصرف (ميلادي)</div><div class="sub">افتراضي ٢٥ من كل شهر</div></div>
+    <input id="optSalaryDay" type="number" min="1" max="28" class="num-input" value="25">
+  </div>
+  <div class="set-row">
+    <div><div class="lab">تقديم للخميس</div><div class="sub">إن صادف يوم الصرف الجمعة أو السبت</div></div>
+    <label class="switch"><input type="checkbox" id="optSalaryShift" checked><span class="track"><span class="knob"></span></span></label>
   </div>
   <div class="set-row">
     <div><div class="lab">المناسبات الوطنية</div><div class="sub">اليوم الوطني، التأسيس، يوم العلم</div></div>
@@ -422,7 +439,7 @@ const store={get(k,d){try{const v=localStorage.getItem(k);return v===null?d:JSON
   set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
 
 /* ---------- settings ---------- */
-const S={theme:store.get('theme','auto'),fest:store.get('fest',true),pay:store.get('pay',true),nat:store.get('nat',true),greg:store.get('greg',true),school:store.get('school',true)};
+const S={theme:store.get('theme','auto'),fest:store.get('fest',true),pay:store.get('pay',true),nat:store.get('nat',true),greg:store.get('greg',true),school:store.get('school',true),salaryDay:store.get('salaryDay',25),salaryShift:store.get('salaryShift',true)};
 function applyTheme(){const h=document.documentElement;if(S.theme==='auto')h.removeAttribute('data-theme');else h.setAttribute('data-theme',S.theme);}
 applyTheme();
 
@@ -502,12 +519,27 @@ function isSchool(h,dt){
   if(gm===2&&gd>=21&&gd<=23)return true;   // التأسيس
   return false;
 }
-/* salary: 25th of each GREGORIAN month; if it lands on Fri/Sat, pay the preceding Thursday */
+/* salary: configurable Gregorian day (default 25); if it lands on Fri/Sat, pay the preceding Thursday */
 function salaryGregDay(y,m0){
-  const wd=new Date(Date.UTC(y,m0,25)).getUTCDay(); // 0=Sun .. 5=Fri, 6=Sat
-  if(wd===5)return 24; // الجمعة → الخميس (٢٤)
-  if(wd===6)return 23; // السبت → الخميس (٢٣)
-  return 25;
+  const d=Math.min(28,Math.max(1,S.salaryDay||25));
+  if(!S.salaryShift)return d;
+  const wd=new Date(Date.UTC(y,m0,d)).getUTCDay(); // 0=Sun .. 5=Fri, 6=Sat
+  if(wd===5)return d-1; // الجمعة → الخميس
+  if(wd===6)return d-2; // السبت → الخميس
+  return d;
+}
+function seasonLine(dt){const m=dt.getUTCMonth()+1,d=dt.getUTCDate(),x=m*100+d;
+  if(x>=320&&x<621)return'#43bda7';   // الربيع
+  if(x>=621&&x<923)return'#ef4444';    // الصيف
+  if(x>=923&&x<1221)return'#f59e0b';   // الخريف
+  return'#0a71ba';}                     // الشتاء
+function daysCounter(greg){
+  const t=Date.UTC(today.getFullYear(),today.getMonth(),today.getDate());
+  const diff=Math.round((Date.UTC(greg.getUTCFullYear(),greg.getUTCMonth(),greg.getUTCDate())-t)/86400000);
+  const word=n=>n===1?'يوم':n===2?'يومين':(n>=3&&n<=10)?'أيام':'يومًا';
+  if(diff===0)return{t:'اليوم',cls:'today'};
+  if(diff>0)return{t:'بعد '+arNum(diff)+' '+word(diff),cls:''};
+  const a=-diff;return{t:'منذ '+arNum(a)+' '+word(a),cls:'past'};
 }
 function eventsFor(h,greg){ // h={d,m,y}, greg=Date(UTC)
   const out=[];
@@ -527,7 +559,7 @@ function eventsFor(h,greg){ // h={d,m,y}, greg=Date(UTC)
     if(gm===3&&gd===11)out.push({type:'n',label:'يوم العلم السعودي'});
   }
   if(S.pay){const tg=salaryGregDay(greg.getUTCFullYear(),greg.getUTCMonth());
-    if(greg.getUTCDate()===tg)out.push({type:'p',label:'صرف الرواتب'+(tg!==25?' (مُقدَّم)':'')});}
+    if(greg.getUTCDate()===tg)out.push({type:'p',label:'صرف الرواتب'+(tg!==(S.salaryDay||25)?' (مُقدَّم)':'')});}
   const k=gkey(greg);
   userEvents.filter(u=>u.d===k).forEach(u=>out.push({type:'u',label:u.t}));
   return out;
@@ -636,7 +668,7 @@ function renderOverview(yg){
   let ncols=0;rows.forEach(r=>ncols=Math.max(ncols,r.lead+r.days.length));
   const wrap=document.createElement('div');wrap.className='ov-wrap';
   const grid=document.createElement('div');grid.className='ov';
-  grid.style.gridTemplateColumns='58px repeat('+ncols+',26px)';
+  grid.style.gridTemplateColumns='56px repeat('+ncols+',30px)';
   const frag=document.createDocumentFragment();
   // corner + header
   const corner=document.createElement('div');corner.className='corner hd';corner.style.gridArea='1 / 1';frag.appendChild(corner);
@@ -653,19 +685,24 @@ function renderOverview(yg){
       const col=r.lead+idx, wd=d.greg.getUTCDay(), k=gkey(d.greg);
       const evs=eventsFor(d.h,d.greg);
       const occ=evs.find(e=>e.type==='n')||evs.find(e=>e.type==='f');
-      let bg=seasonTint(d.greg),ncol='';
-      if(isSchool(d.h,d.greg))bg='rgba(0,167,226,.22)';
+      const isPay=evs.some(e=>e.type==='p');
+      const userEv=evs.some(e=>e.type==='u');
       const Lv=leaveAt(d.greg);
-      if(Lv && !occ)bg=lcol(Lv.c).soft;
-      if(occ){bg=(occ.type==='n')?'var(--nat-soft)':'var(--fest-soft)';ncol=(occ.type==='n')?'var(--nat)':'var(--fest)';}
+      let bg='',full=false;
+      if(isSchool(d.h,d.greg))bg='rgba(0,167,226,.22)';
+      if(Lv && !occ && !isPay)bg=lcol(Lv.c).soft;
+      if(isPay){bg='var(--pay)';full=true;}            // الراتب يملأ الخلية
+      if(occ){bg=(occ.type==='n')?'var(--nat)':'var(--fest)';full=true;}  // المناسبة تملأ الخلية
       const cell=document.createElement('div');
-      cell.className='oc'+((wd===5||wd===6)?' we':'')+(k===todayKey?' today':'');
-      cell.style.gridRow=(ri+2);cell.style.gridColumn=(col+2);cell.style.background=bg;
-      let mk='';if(evs.some(e=>e.type==='p'))mk+='<i style="background:var(--pay)"></i>';
-      if(evs.some(e=>e.type==='u'))mk+='<i style="background:var(--user)"></i>';
-      if(Lv)mk+='<i style="background:'+lcol(Lv.c).dot+'"></i>';
-      cell.innerHTML='<span class="n"'+(ncol?' style="color:'+ncol+'"':'')+'>'+d.num+'</span>'+
-        (S.greg?'<span class="g">'+d.sub+'</span>':'')+(mk?'<span class="mk">'+mk+'</span>':'');
+      cell.className='oc'+((wd===5||wd===6)?' we':'')+(k===todayKey?' today':'')+(full?' full':'');
+      cell.style.gridRow=(ri+2);cell.style.gridColumn=(col+2);
+      if(bg)cell.style.background=bg;
+      cell.style.borderBottomColor=seasonLine(d.greg);   // الفصل كخط سفلي
+      // personal mark box under each day
+      const markColor = userEv ? 'var(--user)' : (Lv ? lcol(Lv.c).dot : '');
+      cell.innerHTML='<span class="n">'+d.num+'</span>'+
+        (S.greg?'<span class="g">'+d.sub+'</span>':'')+
+        '<span class="mbox'+(markColor?(' filled" style="background:'+markColor+'"'):'"')+'></span>';
       cell.addEventListener('click',()=>{selKey=k;openDay(d.h,d.greg,evs);});
       frag.appendChild(cell);
     });
@@ -674,14 +711,15 @@ function renderOverview(yg){
   // legend
   const lg=document.createElement('div');lg.className='legend ov-legend';
   lg.innerHTML=
-    '<span class="lg"><i style="background:rgba(67,189,167,.6)"></i>الربيع</span>'+
-    '<span class="lg"><i style="background:rgba(239,68,68,.5)"></i>الصيف</span>'+
-    '<span class="lg"><i style="background:rgba(245,158,11,.6)"></i>الخريف</span>'+
-    '<span class="lg"><i style="background:rgba(10,113,186,.55)"></i>الشتاء</span>'+
+    '<span class="lg"><i class="line" style="background:#43bda7"></i>الربيع</span>'+
+    '<span class="lg"><i class="line" style="background:#ef4444"></i>الصيف</span>'+
+    '<span class="lg"><i class="line" style="background:#f59e0b"></i>الخريف</span>'+
+    '<span class="lg"><i class="line" style="background:#0a71ba"></i>الشتاء</span>'+
     (S.school?'<span class="lg"><i style="background:rgba(0,167,226,.5)"></i>إجازات المدارس</span>':'')+
     (S.nat?'<span class="lg"><i style="background:var(--nat)"></i>مناسبة رسمية/وطنية</span>':'')+
     (S.fest?'<span class="lg"><i style="background:var(--fest)"></i>مناسبة دينية</span>':'')+
-    (S.pay?'<span class="lg"><i style="background:var(--pay);border-radius:50%"></i>الرواتب</span>':'');
+    (S.pay?'<span class="lg"><i style="background:var(--pay)"></i>الرواتب</span>':'')+
+    '<span class="lg"><i style="background:var(--user)"></i>مناسبة/علامة شخصية</span>';
   yg.appendChild(lg);
 }
 
@@ -748,8 +786,10 @@ function renderMonth(){
     const badgeMo=refIsHijri()?HMONTHS[m.hijri.m-1].split(' ')[0]:GMONTHS[m.greg.getUTCMonth()].slice(0,3);
     m.evs.forEach(e=>{
       const row=document.createElement('div');row.className='ev';
+      const dc=daysCounter(m.greg);
       row.innerHTML='<div class="badge '+e.type+'"><div class="d">'+m.big+'</div><div class="mo">'+badgeMo+'</div></div>'+
-        '<div class="meta"><div class="t">'+e.label+'</div><div class="s">'+WDAYS[m.greg.getUTCDay()]+' · '+m.greg.getUTCDate()+' '+GMONTHS[m.greg.getUTCMonth()]+' '+m.greg.getUTCFullYear()+'</div></div>';
+        '<div class="meta"><div class="t">'+e.label+'</div><div class="s">'+WDAYS[m.greg.getUTCDay()]+' · '+m.greg.getUTCDate()+' '+GMONTHS[m.greg.getUTCMonth()]+' '+m.greg.getUTCFullYear()+'</div>'+
+        '<span class="daycount '+dc.cls+'">'+dc.t+'</span></div>';
       row.addEventListener('click',()=>{selKey=gkey(m.greg);openDay(m.hijri,m.greg,m.evs);render();});
       el.appendChild(row);
     });
@@ -763,6 +803,7 @@ function openDay(h,dt,evs){
   sheetDay={h,dt};
   $('dsTitle').textContent=arNum(h.d)+' '+HMONTHS[h.m-1]+' '+arNum(h.y)+' هـ';
   $('dsGreg').textContent=WDAYS[dt.getUTCDay()]+'، '+dt.getUTCDate()+' '+GMONTHS[dt.getUTCMonth()]+' '+dt.getUTCFullYear()+' م';
+  const dc=daysCounter(dt);$('dsGreg').innerHTML+=' <span class="daycount '+dc.cls+'">'+dc.t+'</span>';
   const tg=$('dsTags');tg.innerHTML='';
   const wd=dt.getUTCDay();
   if(wd===5||wd===6)tg.innerHTML+='<span class="tag w">نهاية الأسبوع</span>';
@@ -931,10 +972,11 @@ function renderSearch(q){
   let list=nq?searchIndex.filter(e=>norm(e.label).includes(nq)):searchIndex;
   list=list.slice().sort((a,b)=>a.greg-b.greg).slice(0,60);
   if(!list.length){el.innerHTML='<div class="empty-ev">'+(nq?'لا نتائج مطابقة':'اكتب للبحث في مناسبات السنة المعروضة')+'</div>';return;}
-  list.forEach(e=>{const dt=e.greg,h=e.h;
+  list.forEach(e=>{const dt=e.greg,h=e.h;const dc=daysCounter(dt);
     const row=document.createElement('div');row.className='ev';
     row.innerHTML='<div class="badge '+e.type+'"><div class="d">'+arNum(h.d)+'</div><div class="mo">'+HMONTHS[h.m-1].split(' ')[0]+'</div></div>'+
-      '<div class="meta" style="flex:1"><div class="t">'+e.label+'</div><div class="s">'+WDAYS[dt.getUTCDay()]+' · '+dt.getUTCDate()+' '+GMONTHS[dt.getUTCMonth()]+' '+dt.getUTCFullYear()+'</div></div>';
+      '<div class="meta" style="flex:1"><div class="t">'+e.label+'</div><div class="s">'+WDAYS[dt.getUTCDay()]+' · '+dt.getUTCDate()+' '+GMONTHS[dt.getUTCMonth()]+' '+dt.getUTCFullYear()+'</div>'+
+      '<span class="daycount '+dc.cls+'">'+dc.t+'</span></div>';
     row.addEventListener('click',()=>{focal=new Date(dt.getTime());mode='month';selKey=gkey(dt);closeSheets();render();openDay(h,dt,eventsFor(h,dt));});
     el.appendChild(row);});
 }
@@ -1033,7 +1075,8 @@ document.querySelectorAll('#themeSeg button').forEach(b=>b.addEventListener('cli
 }));
 document.querySelectorAll('#themeSeg button').forEach(b=>{if(b.dataset.t===S.theme)b.classList.add('on');else b.classList.remove('on');});
 function bind(id,key){const el=$(id);el.checked=S[key];el.addEventListener('change',()=>{S[key]=el.checked;store.set(key,S[key]);render();});}
-bind('optFest','fest');bind('optPay','pay');bind('optNat','nat');bind('optGreg','greg');bind('optSchool','school');
+bind('optFest','fest');bind('optPay','pay');bind('optNat','nat');bind('optGreg','greg');bind('optSchool','school');bind('optSalaryShift','salaryShift');
+(function(){var sd=$('optSalaryDay');if(sd){sd.value=S.salaryDay;sd.addEventListener('change',function(){var v=parseInt(sd.value,10);if(isNaN(v))v=25;v=Math.min(28,Math.max(1,v));sd.value=v;S.salaryDay=v;store.set('salaryDay',v);render();});}})();
 
 render();
 if(cur.y===gregToHijri(dayUTC(today.getFullYear(),today.getMonth(),today.getDate())).y)selKey=null;
