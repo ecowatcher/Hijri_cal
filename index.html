@@ -219,6 +219,20 @@
   .num-input:focus{border-color:var(--accent);}
   .sel-input{border:1px solid var(--line);background:var(--surface2);color:var(--ink);font-family:var(--ff);font-size:14px;font-weight:600;padding:9px 10px;border-radius:12px;outline:none;max-width:160px;}
   .sel-input:focus{border-color:var(--accent);}
+  .ds-prayer{margin-top:14px;background:var(--surface2);border:1px solid var(--line);border-radius:16px;padding:12px;}
+  .ds-prayer .dp-h{font-size:13px;font-weight:700;color:var(--accent-ink);margin-bottom:10px;}
+  .ds-prayer .dp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+  .ds-prayer .dp-cell{display:flex;flex-direction:column;align-items:center;gap:3px;background:var(--surface);border-radius:12px;padding:9px 4px;}
+  .ds-prayer .dp-n{font-size:11px;color:var(--ink3);}
+  .ds-prayer .dp-t{font-size:14px;font-weight:700;color:var(--ink);}
+  .tc-pray{margin-top:10px;border-top:1px solid var(--line);padding-top:10px;}
+  .tc-pray .tp-next{font-size:12.5px;font-weight:700;color:var(--accent-ink);margin-bottom:8px;}
+  .tc-pray .tp-row{display:flex;gap:6px;overflow-x:auto;}
+  .tc-pray .tp-cell{flex:1;min-width:46px;display:flex;flex-direction:column;align-items:center;gap:2px;background:var(--surface2);border-radius:10px;padding:6px 3px;}
+  .tc-pray .tp-cell.on{background:var(--accent);}
+  .tc-pray .tp-cell.on .tp-n,.tc-pray .tp-cell.on .tp-t{color:#fff;}
+  .tc-pray .tp-n{font-size:10px;color:var(--ink3);white-space:nowrap;}
+  .tc-pray .tp-t{font-size:11.5px;font-weight:700;color:var(--ink);white-space:nowrap;}
   .daycount{display:inline-block;margin-top:3px;font-size:11px;font-weight:600;color:var(--accent-ink);background:var(--accent-soft);padding:2px 9px;border-radius:var(--r-pill);}
   .daycount.past{color:var(--ink3);background:var(--bg2);}
   .daycount.today{color:#fff;background:var(--accent);}
@@ -366,6 +380,7 @@
   <div class="row"><span class="k">اليوم</span><span class="v" id="dsWeekday">—</span></div>
   <div class="row"><span class="k">التاريخ الميلادي</span><span class="v" id="dsGregFull">—</span></div>
   <div class="row"><span class="k">الموسم</span><span class="v" id="dsSeason">—</span></div>
+  <div id="dsPrayer" class="ds-prayer" hidden></div>
   <div class="sheet-actions">
     <button class="btn primary" id="dsShare">📷 مشاركة كصورة</button>
     <button class="btn ghost" id="dsAdd">إضافة (.ics)</button>
@@ -421,6 +436,10 @@
     <div><div class="lab">إجازاتي</div><div class="sub" id="myLeaveCount">فترات إجازة ممتدّة (من–إلى)</div></div>
     <span style="color:var(--ink3);font-size:18px;">‹</span>
   </div>
+  <div class="set-row" id="rowPrayer" style="cursor:pointer;">
+    <div><div class="lab">أوقات الصلاة</div><div class="sub" id="prayerSub">حسب المدينة · أم القرى</div></div>
+    <span style="color:var(--ink3);font-size:18px;">‹</span>
+  </div>
   <div class="set-row" id="rowConvert" style="cursor:pointer;">
     <div><div class="lab">محوّل وحاسبة التواريخ</div><div class="sub">هجري↔ميلادي · الفرق بين تاريخين</div></div>
     <span style="color:var(--ink3);font-size:18px;">‹</span>
@@ -442,10 +461,41 @@
   <div class="sheet-actions">
     <button class="btn ghost" id="setClose" style="flex:1;">تم</button>
   </div>
+  <div style="text-align:center;color:var(--ink3);font-size:11px;margin-top:10px;">التقويم الهجري · أم القرى — الإصدار ٤٫٠</div>
 </div>
 
-<!-- Converter / calculator sheet -->
-<div class="sheet" id="convSheet">
+<!-- Prayer-times settings sheet -->
+<div class="sheet" id="praySheet">
+  <div class="grab"></div>
+  <h3 style="margin-bottom:12px;">أوقات الصلاة</h3>
+  <div class="set-row">
+    <div><div class="lab">إظهار أوقات الصلاة</div><div class="sub">في بطاقة اليوم وتفاصيل كل يوم</div></div>
+    <label class="switch"><input type="checkbox" id="prOn"><span class="track"><span class="knob"></span></span></label>
+  </div>
+  <div class="set-row">
+    <div><div class="lab">المدينة</div></div>
+    <select id="prCity" class="sel-input"></select>
+  </div>
+  <div class="set-row" id="prGpsRow" style="display:none;">
+    <div><div class="lab">إحداثياتي</div><div class="sub" id="prCoordLbl">لم تُحدَّد بعد</div></div>
+    <button class="btn ghost" id="prGpsBtn" style="padding:8px 12px;">📍 تحديد</button>
+  </div>
+  <div class="set-row" id="prCustomRow" style="display:none;">
+    <div><div class="lab">إحداثيات يدوية</div><div class="sub">العرض · الطول</div></div>
+    <div style="display:flex;gap:6px;"><input id="prLat" class="num-input" type="number" step="0.0001"><input id="prLng" class="num-input" type="number" step="0.0001"></div>
+  </div>
+  <div class="set-row">
+    <div><div class="lab">طريقة الحساب</div></div>
+    <select id="prMethod" class="sel-input"></select>
+  </div>
+  <div class="set-row">
+    <div><div class="lab">مذهب العصر</div><div class="sub">العصر عند الجمهور أبكر من الحنفي</div></div>
+    <select id="prAsr" class="sel-input"><option value="standard">الجمهور/الشافعي</option><option value="hanafi">الحنفي</option></select>
+  </div>
+  <div class="sheet-actions">
+    <button class="btn primary" id="prayDone" style="flex:1;">تم</button>
+  </div>
+</div>
   <div class="grab"></div>
   <h3 style="margin-bottom:12px;">محوّل وحاسبة التواريخ</h3>
   <div class="seg" id="convSeg" style="margin-bottom:4px;">
@@ -548,7 +598,79 @@ const store={get(k,d){try{const v=localStorage.getItem(k);return v===null?d:JSON
   set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
 
 /* ---------- settings ---------- */
-const S={theme:store.get('theme','auto'),fest:store.get('fest',true),pay:store.get('pay',true),nat:store.get('nat',true),greg:store.get('greg',true),school:store.get('school',true),salaryDay:store.get('salaryDay',25),salaryShift:store.get('salaryShift',true),reminder:store.get('reminder','d1')};
+const S={theme:store.get('theme','auto'),fest:store.get('fest',true),pay:store.get('pay',true),nat:store.get('nat',true),greg:store.get('greg',true),school:store.get('school',true),salaryDay:store.get('salaryDay',25),salaryShift:store.get('salaryShift',true),reminder:store.get('reminder','d1'),
+  prOn:store.get('prOn',true),prCity:store.get('prCity','abha'),prLat:store.get('prLat',18.2164),prLng:store.get('prLng',42.5053),prMethod:store.get('prMethod','umalqura'),prAsr:store.get('prAsr','standard')};
+
+/* ---------- prayer times (offline astronomical engine, Umm al-Qura defaults) ---------- */
+const Pray=(function(){
+  const dtr=d=>d*Math.PI/180,rtd=r=>r*180/Math.PI;
+  const sin=d=>Math.sin(dtr(d)),cos=d=>Math.cos(dtr(d)),tan=d=>Math.tan(dtr(d));
+  const arcsin=x=>rtd(Math.asin(x)),arccos=x=>rtd(Math.acos(x)),arccot=x=>rtd(Math.atan(1/x)),arctan2=(y,x)=>rtd(Math.atan2(y,x));
+  const fix=(a,b)=>{a=a-b*Math.floor(a/b);return a<0?a+b:a;};
+  const fixAngle=a=>fix(a,360),fixHour=h=>fix(h,24);
+  function julian(y,m,d){if(m<=2){y-=1;m+=12;}const A=Math.floor(y/100),B=2-A+Math.floor(A/4);return Math.floor(365.25*(y+4716))+Math.floor(30.6001*(m+1))+d+B-1524.5;}
+  function sunPos(jd){const D=jd-2451545.0;const g=fixAngle(357.529+0.98560028*D);const q=fixAngle(280.459+0.98564736*D);
+    const L=fixAngle(q+1.915*sin(g)+0.020*sin(2*g));const e=23.439-0.00000036*D;
+    const decl=arcsin(sin(e)*sin(L));let RA=arctan2(cos(e)*sin(L),cos(L))/15;RA=fixHour(RA);return[decl,q/15-RA];}
+  const CITIES={
+    abha:{n:'أبها',lat:18.2164,lng:42.5053},khamis:{n:'خميس مشيط',lat:18.3000,lng:42.7300},
+    bisha:{n:'بيشة',lat:19.9764,lng:42.6008},najran:{n:'نجران',lat:17.4924,lng:44.1277},
+    jazan:{n:'جازان',lat:16.8892,lng:42.5611},baha:{n:'الباحة',lat:20.0129,lng:41.4677},
+    makkah:{n:'مكة المكرمة',lat:21.4225,lng:39.8262},madinah:{n:'المدينة المنورة',lat:24.4709,lng:39.6112},
+    riyadh:{n:'الرياض',lat:24.7136,lng:46.6753},jeddah:{n:'جدة',lat:21.5429,lng:39.1728},
+    taif:{n:'الطائف',lat:21.2854,lng:40.4198},dammam:{n:'الدمام',lat:26.4207,lng:50.0888},
+    tabuk:{n:'تبوك',lat:28.3838,lng:36.5550},buraydah:{n:'بريدة',lat:26.3260,lng:43.9750},hail:{n:'حائل',lat:27.5114,lng:41.7208}
+  };
+  const CITY_ORDER=['abha','khamis','bisha','najran','jazan','baha','makkah','madinah','riyadh','jeddah','taif','dammam','tabuk','buraydah','hail'];
+  const METHODS={
+    umalqura:{n:'أم القرى',fajr:18.5,ishaMin:90},
+    mwl:{n:'رابطة العالم الإسلامي',fajr:18,isha:17},
+    egypt:{n:'الهيئة المصرية',fajr:19.5,isha:17.5},
+    karachi:{n:'كراتشي',fajr:18,isha:18},
+    isna:{n:'أمريكا الشمالية (ISNA)',fajr:15,isha:15}
+  };
+  const METHOD_ORDER=['umalqura','mwl','egypt','karachi','isna'];
+  function times(y,m,d,lat,lng,tz,methodKey,asrKey,isRamadan){
+    const M=METHODS[methodKey]||METHODS.umalqura;
+    const asrFactor=(asrKey==='hanafi')?2:1;
+    const jdate=julian(y,m,d)-lng/(15*24);
+    const dec=t=>sunPos(jdate+t/24)[0];
+    const eqt=t=>sunPos(jdate+t/24)[1];
+    const midDay=t=>fixHour(12-eqt(t));
+    const sunAngle=(ang,t,dir)=>{const D=dec(t);const N=midDay(t);
+      const A=(-sin(ang)-sin(D)*sin(lat))/(cos(D)*cos(lat));return N+(dir==='ccw'?-1:1)*(1/15)*arccos(A);};
+    const asrT=(f,t)=>{const D=dec(t);return sunAngle(-arccot(f+tan(Math.abs(lat-D))),t,'cw');};
+    let fajr,sunrise,dhuhr,asr,sunset;
+    let t={fajr:5/24,sunrise:6/24,dhuhr:12/24,asr:13/24,sunset:18/24};
+    for(let i=0;i<3;i++){
+      fajr=sunAngle(M.fajr,t.fajr,'ccw');sunrise=sunAngle(0.833,t.sunrise,'ccw');
+      dhuhr=midDay(t.dhuhr);asr=asrT(asrFactor,t.asr);sunset=sunAngle(0.833,t.sunset,'cw');
+      t={fajr:fajr/24,sunrise:sunrise/24,dhuhr:dhuhr/24,asr:asr/24,sunset:sunset/24};
+    }
+    let maghrib=sunset;
+    let isha=(M.ishaMin!=null)?maghrib+(isRamadan?120:M.ishaMin)/60:sunAngle(M.isha,sunset/24,'cw');
+    const adj=h=>fixHour(h+tz-lng/15);
+    const o={fajr,sunrise,dhuhr,asr,maghrib,isha};for(const k in o)o[k]=adj(o[k]);
+    if(isNaN(o.fajr))o.fajr=fixHour(o.sunrise-1.5);   // high-latitude guard (never triggers in KSA)
+    if(isNaN(o.isha))o.isha=fixHour(o.maghrib+1.5);
+    return o;
+  }
+  return {times,CITIES,CITY_ORDER,METHODS,METHOD_ORDER};
+})();
+const PR_ROWS=[['الفجر','fajr'],['الشروق','sunrise'],['الظهر','dhuhr'],['العصر','asr'],['المغرب','maghrib'],['العشاء','isha']];
+function fmtPray(h){if(h==null||isNaN(h))return '—';h=((h%24)+24)%24;let mm=Math.round(h*60);let H=Math.floor(mm/60)%24;let M=mm%60;const am=H<12;let h12=H%12;if(h12===0)h12=12;return arNum(h12)+':'+arNum(String(M).padStart(2,'0'))+' '+(am?'ص':'م');}
+function prayCoords(){if(S.prCity==='gps')return{lat:S.prLat,lng:S.prLng,n:'موقعي'};if(S.prCity==='custom')return{lat:S.prLat,lng:S.prLng,n:'إحداثيات مخصّصة'};const c=Pray.CITIES[S.prCity]||Pray.CITIES.abha;return{lat:c.lat,lng:c.lng,n:c.n};}
+function tzFor(y,m,d){return -(new Date(y,m,d,12,0,0)).getTimezoneOffset()/60;}
+function prayerTimesFor(h,dt){const y=dt.getUTCFullYear(),m=dt.getUTCMonth(),d=dt.getUTCDate();const c=prayCoords();return Pray.times(y,m+1,d,c.lat,c.lng,tzFor(y,m,d),S.prMethod,S.prAsr,h.m===9);}
+function nextPrayer(){const now=new Date();const y=now.getFullYear(),m=now.getMonth(),d=now.getDate();const c=prayCoords();
+  const dt0=dayUTC(y,m,d);const h0=gregToHijri(dt0);const t=Pray.times(y,m+1,d,c.lat,c.lng,tzFor(y,m,d),S.prMethod,S.prAsr,h0.m===9);
+  const nowH=now.getHours()+now.getMinutes()/60+now.getSeconds()/3600;
+  for(const [nm,k] of PR_ROWS){if(t[k]>nowH)return{key:k,name:nm,mins:Math.round((t[k]-nowH)*60)};}
+  const tm=new Date(now.getTime()+86400000);const y2=tm.getFullYear(),m2=tm.getMonth(),d2=tm.getDate();const dt2=dayUTC(y2,m2,d2);const h2=gregToHijri(dt2);
+  const t2=Pray.times(y2,m2+1,d2,c.lat,c.lng,tzFor(y2,m2,d2),S.prMethod,S.prAsr,h2.m===9);
+  return{key:'fajr',name:'الفجر',mins:Math.round((24-nowH+t2.fajr)*60),tomorrow:true};
+}
+function prayCountdown(mins){return mins>=60?('بعد '+arNum(Math.floor(mins/60))+':'+arNum(String(mins%60).padStart(2,'0'))):('بعد '+arNum(mins)+' دقيقة');}
 function applyTheme(){const h=document.documentElement;if(S.theme==='auto')h.removeAttribute('data-theme');else h.setAttribute('data-theme',S.theme);}
 applyTheme();
 
@@ -742,10 +864,14 @@ function renderTodayCard(){
       '<span class="nx-l">'+nx.label+'</span>'+
       '<span class="nx-c">'+dc.t+'</span></div>';
   }
+  let prayHtml='';
+  if(S.prOn){const np=nextPrayer();const dt0=dayUTC(today.getFullYear(),today.getMonth(),today.getDate());const h0=gregToHijri(dt0);const t=prayerTimesFor(h0,dt0);
+    const items=PR_ROWS.map(r=>{const on=(!np.tomorrow&&np.key===r[1]);return '<div class="tp-cell'+(on?' on':'')+'"><span class="tp-n">'+r[0]+'</span><span class="tp-t">'+fmtPray(t[r[1]])+'</span></div>';}).join('');
+    prayHtml='<div class="tc-pray"><div class="tp-next">🕌 '+np.name+(np.tomorrow?' (غدًا)':'')+' · '+prayCountdown(np.mins)+'</div><div class="tp-row">'+items+'</div></div>';}
   card.innerHTML=
     '<div class="tc-top"><div><div class="tc-h">'+hStr+'</div><div class="tc-g">'+gStr+'</div></div>'+
     '<span class="tc-season" style="background:'+sline+'22;color:'+sline+'">'+ses.i+' '+ses.n+'</span></div>'+
-    nextHtml;
+    nextHtml+prayHtml;
   card.hidden=false;
   card.onclick=()=>{focal=dayUTC(today.getFullYear(),today.getMonth(),today.getDate());selKey=gkey(focal);if(mode!=='month'){mode='month';}render();openDay(cur,focal,eventsFor(cur,focal));};
 }
@@ -1088,6 +1214,12 @@ function openDay(h,dt,evs){
   $('dsWeekday').textContent=WDAYS[wd];
   $('dsGregFull').textContent=dt.getUTCDate()+'/'+(dt.getUTCMonth()+1)+'/'+dt.getUTCFullYear();
   const ses=seasonOf(dt.getUTCMonth(),dt.getUTCDate());$('dsSeason').textContent=ses.i+' '+ses.n;
+  const pe=$('dsPrayer');
+  if(S.prOn){const t=prayerTimesFor(h,dt);const c=prayCoords();
+    pe.innerHTML='<div class="dp-h">🕌 أوقات الصلاة — '+c.n+(h.m===9?' (رمضان)':'')+'</div><div class="dp-grid">'+
+      PR_ROWS.map(r=>'<div class="dp-cell"><span class="dp-n">'+r[0]+'</span><span class="dp-t">'+fmtPray(t[r[1]])+'</span></div>').join('')+'</div>';
+    pe.hidden=false;}
+  else pe.hidden=true;
   $('dsAddRow').style.display='none';$('dsMarkColors').style.display='none';$('dsEvTitle').value='';
   $('dsNote').value=dayNotes[gkey(dt)]||'';
   openSheet('daySheet');
@@ -1398,7 +1530,7 @@ if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){
 }
 
 /* ---------- sheets ---------- */
-const SHEET_IDS=['daySheet','setSheet','pickSheet','myEvSheet','searchSheet','myLeaveSheet','leaveFormSheet','convSheet'];
+const SHEET_IDS=['daySheet','setSheet','pickSheet','myEvSheet','searchSheet','myLeaveSheet','leaveFormSheet','convSheet','praySheet'];
 let sheetPushed=false, ignorePop=false;
 function hideAllSheets(){$('scrim').classList.remove('on');SHEET_IDS.forEach(id=>$(id).classList.remove('on'));}
 function openSheet(id){$('scrim').classList.add('on');$(id).classList.add('on');
@@ -1412,6 +1544,43 @@ window.addEventListener('popstate',function(){
 $('scrim').addEventListener('click',closeSheets);
 $('dsClose').addEventListener('click',closeSheets);
 $('setClose').addEventListener('click',closeSheets);
+
+/* ---- prayer-times settings ---- */
+function prayerSubLabel(){const c=prayCoords();const mn=(Pray.METHODS[S.prMethod]||Pray.METHODS.umalqura).n;$('prayerSub').textContent=S.prOn?(c.n+' · '+mn):'مغلقة';}
+(function(){
+  const citySel=$('prCity');if(citySel && !citySel.options.length){
+    Pray.CITY_ORDER.forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=Pray.CITIES[k].n;citySel.appendChild(o);});
+    const og=document.createElement('option');og.value='gps';og.textContent='📍 موقعي (GPS)';citySel.appendChild(og);
+    const oc=document.createElement('option');oc.value='custom';oc.textContent='إحداثيات يدوية';citySel.appendChild(oc);
+  }
+  const mSel=$('prMethod');if(mSel && !mSel.options.length){
+    Pray.METHOD_ORDER.forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=Pray.METHODS[k].n;mSel.appendChild(o);});
+  }
+  function syncRows(){$('prGpsRow').style.display=(S.prCity==='gps')?'flex':'none';$('prCustomRow').style.display=(S.prCity==='custom')?'flex':'none';
+    if(S.prCity==='gps')$('prCoordLbl').textContent=(S.prLat&&S.prLng)?(S.prLat.toFixed(4)+' , '+S.prLng.toFixed(4)):'لم تُحدَّد بعد';}
+  function applyInputs(){const on=$('prOn');if(on)on.checked=S.prOn;if(citySel)citySel.value=S.prCity;if(mSel)mSel.value=S.prMethod;
+    const a=$('prAsr');if(a)a.value=S.prAsr;const la=$('prLat'),ln=$('prLng');if(la)la.value=S.prLat;if(ln)ln.value=S.prLng;syncRows();}
+  $('rowPrayer').addEventListener('click',()=>{closeSheets();applyInputs();openSheet('praySheet');});
+  $('prayDone').addEventListener('click',()=>{prayerSubLabel();closeSheets();});
+  const on=$('prOn');if(on)on.addEventListener('change',()=>{S.prOn=on.checked;store.set('prOn',S.prOn);prayerSubLabel();render();});
+  if(citySel)citySel.addEventListener('change',()=>{S.prCity=citySel.value;store.set('prCity',S.prCity);
+    if(citySel.value!=='gps'&&citySel.value!=='custom'){const c=Pray.CITIES[citySel.value];S.prLat=c.lat;S.prLng=c.lng;store.set('prLat',c.lat);store.set('prLng',c.lng);}
+    syncRows();prayerSubLabel();render();});
+  if(mSel)mSel.addEventListener('change',()=>{S.prMethod=mSel.value;store.set('prMethod',S.prMethod);prayerSubLabel();render();});
+  const a=$('prAsr');if(a)a.addEventListener('change',()=>{S.prAsr=a.value;store.set('prAsr',S.prAsr);render();});
+  const la=$('prLat'),ln=$('prLng');
+  function readCoord(){const x=parseFloat(la.value),y=parseFloat(ln.value);if(!isNaN(x)){S.prLat=x;store.set('prLat',x);}if(!isNaN(y)){S.prLng=y;store.set('prLng',y);}render();}
+  if(la)la.addEventListener('change',readCoord);if(ln)ln.addEventListener('change',readCoord);
+  const gb=$('prGpsBtn');if(gb)gb.addEventListener('click',()=>{
+    if(!navigator.geolocation){toast('تحديد الموقع غير مدعوم');return;}
+    gb.textContent='…';
+    navigator.geolocation.getCurrentPosition(p=>{S.prLat=p.coords.latitude;S.prLng=p.coords.longitude;
+      store.set('prLat',S.prLat);store.set('prLng',S.prLng);$('prCoordLbl').textContent=S.prLat.toFixed(4)+' , '+S.prLng.toFixed(4);
+      gb.textContent='📍 تحديث';prayerSubLabel();render();toast('تم تحديد موقعك');},
+      err=>{gb.textContent='📍 تحديد';toast('تعذّر تحديد الموقع');},{enableHighAccuracy:true,timeout:10000});
+  });
+  prayerSubLabel();
+})();
 $('btnSettings').addEventListener('click',()=>{
   $('myEvCount').textContent=userEvents.length?userEvents.length+' مناسبة محفوظة':'إضافة وحذف مناسباتك الخاصة';
   $('myLeaveCount').textContent=userLeaves.length?userLeaves.length+' إجازة محفوظة':'فترات إجازة ممتدّة (من–إلى)';
