@@ -509,9 +509,17 @@ function seasonTint(dt){const m=dt.getUTCMonth()+1,d=dt.getUTCDate(),x=m*100+d;
   if(x>=621&&x<923)return'rgba(239,68,68,.10)';     // الصيف
   if(x>=923&&x<1221)return'rgba(245,158,11,.16)';   // الخريف
   return'rgba(10,113,186,.13)';}                     // الشتاء
-/* school breaks: approximate, anchored to official occasions (editable) */
+/* School holidays — official MoE academic calendar 1448 (exact); other years approximate */
 function isSchool(h,dt){
   if(!S.school)return false;
+  if(h.y===1448){
+    const k=h.m*100+h.d; // within the same Hijri year
+    // إجازات وزارة التعليم ١٤٤٨: وطني · خريف · منتصف العام · تأسيس · عيد الفطر · عيد الأضحى
+    const R=[[412,415],[610,618],[730,808],[912,915],[919,1005],[1201,1216]];
+    for(let i=0;i<R.length;i++){if(k>=R[i][0]&&k<=R[i][1])return true;}
+    return false;
+  }
+  // سنوات أخرى: تقديرية مرتبطة بالمناسبات
   if(h.m===9&&h.d>=24)return true;        // أواخر رمضان
   if(h.m===10&&h.d<=6)return true;         // إجازة عيد الفطر
   if(h.m===12&&h.d>=6&&h.d<=14)return true;// إجازة عيد الأضحى
