@@ -217,6 +217,8 @@
   .num-input{width:62px;border:1px solid var(--line);background:var(--surface2);color:var(--ink);font-family:var(--ff);font-size:16px;font-weight:600;text-align:center;padding:9px 6px;border-radius:12px;outline:none;-moz-appearance:textfield;}
   .num-input::-webkit-outer-spin-button,.num-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
   .num-input:focus{border-color:var(--accent);}
+  .sel-input{border:1px solid var(--line);background:var(--surface2);color:var(--ink);font-family:var(--ff);font-size:14px;font-weight:600;padding:9px 10px;border-radius:12px;outline:none;max-width:160px;}
+  .sel-input:focus{border-color:var(--accent);}
   .daycount{display:inline-block;margin-top:3px;font-size:11px;font-weight:600;color:var(--accent-ink);background:var(--accent-soft);padding:2px 9px;border-radius:var(--r-pill);}
   .daycount.past{color:var(--ink3);background:var(--bg2);}
   .daycount.today{color:#fff;background:var(--accent);}
@@ -269,7 +271,9 @@
   .mini .mdow span{font-size:8.5px;color:var(--ink3);text-align:center;}
   .mini .mdow span.we{color:var(--weekend-ink);}
   .mini .mg{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;}
-  .mini .mc{font-size:10.5px;text-align:center;aspect-ratio:1;display:grid;place-items:center;color:var(--ink);border-radius:50%;}
+  .mini .mc{position:relative;font-size:10.5px;text-align:center;aspect-ratio:1;display:grid;place-items:center;color:var(--ink);border-radius:50%;}
+  .mini .mc .md{position:absolute;bottom:0px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;}
+  .mini .mc.today .md{bottom:1px;box-shadow:0 0 0 1px rgba(255,255,255,.5);}
   .mini .mc.we{color:var(--weekend-ink);}
   .mini .mc.today{background:var(--today);color:#fff;font-weight:700;}
 
@@ -421,6 +425,16 @@
     <div><div class="lab">محوّل وحاسبة التواريخ</div><div class="sub">هجري↔ميلادي · الفرق بين تاريخين</div></div>
     <span style="color:var(--ink3);font-size:18px;">‹</span>
   </div>
+  <div class="set-row">
+    <div><div class="lab">منبّه الأحداث</div><div class="sub">يُضاف داخل ملف ICS فيذكّرك تقويم جهازك</div></div>
+    <select id="optReminder" class="sel-input">
+      <option value="none">بدون</option>
+      <option value="morning">صباح اليوم (٨ ص)</option>
+      <option value="d1">قبل يوم (٨ م)</option>
+      <option value="d2">قبل يومين (٨ م)</option>
+      <option value="d3">قبل ٣ أيام (٨ م)</option>
+    </select>
+  </div>
   <div class="set-row" id="rowExport" style="cursor:pointer;">
     <div><div class="lab">تصدير مناسبات السنة (.ics)</div><div class="sub">استوردها في تقويم سامسونج أو جوجل</div></div>
     <span style="color:var(--ink3);font-size:18px;">⤓</span>
@@ -534,7 +548,7 @@ const store={get(k,d){try{const v=localStorage.getItem(k);return v===null?d:JSON
   set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
 
 /* ---------- settings ---------- */
-const S={theme:store.get('theme','auto'),fest:store.get('fest',true),pay:store.get('pay',true),nat:store.get('nat',true),greg:store.get('greg',true),school:store.get('school',true),salaryDay:store.get('salaryDay',25),salaryShift:store.get('salaryShift',true)};
+const S={theme:store.get('theme','auto'),fest:store.get('fest',true),pay:store.get('pay',true),nat:store.get('nat',true),greg:store.get('greg',true),school:store.get('school',true),salaryDay:store.get('salaryDay',25),salaryShift:store.get('salaryShift',true),reminder:store.get('reminder','d1')};
 function applyTheme(){const h=document.documentElement;if(S.theme==='auto')h.removeAttribute('data-theme');else h.setAttribute('data-theme',S.theme);}
 applyTheme();
 
@@ -750,7 +764,14 @@ function miniCard(title,lead,items,isCur){
   for(let i=0;i<lead;i++)h+='<span class="mc"></span>';
   items.forEach(o=>{const wd=o.greg.getUTCDay();const k=gkey(o.greg);
     const cls='mc'+((wd===5||wd===6)?' we':'')+(k===todayKey?' today':'');
-    h+='<span class="'+cls+'">'+o.label+'</span>';});
+    const hh=gregToHijri(o.greg);const evs=eventsFor(hh,o.greg);let col=null;
+    if(evs.some(e=>e.type==='n'))col='var(--nat)';
+    else if(evs.some(e=>e.type==='f'))col='var(--fest)';
+    else if(evs.some(e=>e.type==='p'))col='var(--pay)';
+    else{const ue=evs.find(e=>e.type==='u');const lv=leaveAt(o.greg);
+      if(ue)col=mcol(ue.c||'v');else if(lv)col=lcol(lv.c).dot;else if(dayNotes[k])col='var(--ink3)';}
+    const dot=col?'<i class="md" style="background:'+col+'"></i>':'';
+    h+='<span class="'+cls+'">'+o.label+dot+'</span>';});
   h+='</div>';
   const card=document.createElement('div');card.className='mini'+(isCur?' cur':'');card.innerHTML=h;return card;
 }
@@ -1075,13 +1096,24 @@ function openDay(h,dt,evs){
 function pad2(n){return String(n).padStart(2,'0');}
 function icsDate(dt){return dt.getUTCFullYear()+pad2(dt.getUTCMonth()+1)+pad2(dt.getUTCDate());}
 function icsEsc(t){return String(t).replace(/[\\;,]/g,m=>'\\'+m).replace(/\n/g,'\\n');}
+function remTrigger(){ // VALARM TRIGGER relative to all-day DTSTART (midnight)
+  switch(S.reminder){
+    case 'morning':return 'PT8H';      // 8:00 AM on the day
+    case 'd1':return '-PT4H';          // day before 8:00 PM
+    case 'd2':return '-P1DT4H';        // 2 days before 8:00 PM
+    case 'd3':return '-P2DT4H';        // 3 days before 8:00 PM
+    default:return null;               // 'none'
+  }
+}
 function buildICS(events){
   let s='BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//HijriCal//AR//\r\nCALSCALE:GREGORIAN\r\n';
+  const trig=remTrigger();
   events.forEach((e,i)=>{const d=icsDate(e.greg);
     const endBase=e.end?e.end:e.greg;const nx=new Date(endBase.getTime()+86400000);
+    const alarm=trig?('BEGIN:VALARM\r\nACTION:DISPLAY\r\nDESCRIPTION:'+icsEsc(e.summary)+'\r\nTRIGGER:'+trig+'\r\nEND:VALARM\r\n'):'';
     s+='BEGIN:VEVENT\r\nUID:'+d+'-'+i+'@hijrical\r\nDTSTART;VALUE=DATE:'+d+'\r\nDTEND;VALUE=DATE:'+icsDate(nx)+
       '\r\nSUMMARY:'+icsEsc(e.summary)+'\r\n'+(e.desc?'DESCRIPTION:'+icsEsc(e.desc)+'\r\n':'')+
-      'TRANSP:TRANSPARENT\r\nEND:VEVENT\r\n';});
+      alarm+'TRANSP:TRANSPARENT\r\nEND:VEVENT\r\n';});
   return s+'END:VCALENDAR\r\n';
 }
 function downloadICS(name,text){
@@ -1366,8 +1398,17 @@ if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){
 }
 
 /* ---------- sheets ---------- */
-function openSheet(id){$('scrim').classList.add('on');$(id).classList.add('on');}
-function closeSheets(){$('scrim').classList.remove('on');$('daySheet').classList.remove('on');$('setSheet').classList.remove('on');$('pickSheet').classList.remove('on');$('myEvSheet').classList.remove('on');$('searchSheet').classList.remove('on');$('myLeaveSheet').classList.remove('on');$('leaveFormSheet').classList.remove('on');$('convSheet').classList.remove('on');}
+const SHEET_IDS=['daySheet','setSheet','pickSheet','myEvSheet','searchSheet','myLeaveSheet','leaveFormSheet','convSheet'];
+let sheetPushed=false, ignorePop=false;
+function hideAllSheets(){$('scrim').classList.remove('on');SHEET_IDS.forEach(id=>$(id).classList.remove('on'));}
+function openSheet(id){$('scrim').classList.add('on');$(id).classList.add('on');
+  if(!sheetPushed){sheetPushed=true;try{history.pushState({hcsheet:1},'');}catch(e){}}}
+function closeSheets(){hideAllSheets();
+  if(sheetPushed){sheetPushed=false; if(history.state&&history.state.hcsheet){ignorePop=true;try{history.back();}catch(e){ignorePop=false;}}}}
+window.addEventListener('popstate',function(){
+  if(ignorePop){ignorePop=false;return;}
+  if(sheetPushed||$('scrim').classList.contains('on')){sheetPushed=false;hideAllSheets();}
+});
 $('scrim').addEventListener('click',closeSheets);
 $('dsClose').addEventListener('click',closeSheets);
 $('setClose').addEventListener('click',closeSheets);
@@ -1424,7 +1465,8 @@ function renderPicker(){
     b.addEventListener('click',()=>{
       const y=parseInt($('pyInput').value,10)||pickYear;
       focal = hijri ? firstGregOfHijri(y,i+1) : dayUTC(y,i,1);
-      mode='month';selKey=null;closeSheets();render();
+      if(mode!=='year')mode='month';
+      selKey=null;closeSheets();render();
     });
     mg.appendChild(b);
   });
@@ -1443,6 +1485,37 @@ const yg=$('yearGrid');
 yg.addEventListener('touchstart',e=>tx=e.touches[0].clientX,{passive:true});
 yg.addEventListener('touchend',e=>{if(yearMode==='matrix')return;const dx=e.changedTouches[0].clientX-tx;if(Math.abs(dx)>55){shift(dx>0?-1:1);}},{passive:true});
 
+/* swipe a sheet downward to close it */
+function attachSheetDrag(sheet){
+  let sy=null,drag=false,dy=0;
+  sheet.addEventListener('touchstart',e=>{
+    if(e.touches.length!==1){sy=null;return;}
+    sy=e.touches[0].clientY;drag=false;dy=0;
+  },{passive:true});
+  sheet.addEventListener('touchmove',e=>{
+    if(sy===null)return;
+    const d=e.touches[0].clientY-sy;
+    if(!drag){
+      if(d>6 && sheet.scrollTop<=0)drag=true;          // pulling sheet down from top
+      else if(d<-2 || sheet.scrollTop>0){sy=null;return;} // user is scrolling content
+      else return;
+    }
+    dy=Math.max(0,d);
+    sheet.style.transition='none';
+    sheet.style.transform='translateY('+dy+'px)';
+    e.preventDefault();
+  },{passive:false});
+  function settle(){
+    sheet.style.transition='';
+    if(dy>90){sheet.style.transform='';closeSheets();}
+    else sheet.style.transform='';
+    sy=null;drag=false;dy=0;
+  }
+  sheet.addEventListener('touchend',settle,{passive:true});
+  sheet.addEventListener('touchcancel',settle,{passive:true});
+}
+SHEET_IDS.forEach(id=>{const el=$(id);if(el)attachSheetDrag(el);});
+
 /* settings handlers */
 document.querySelectorAll('#themeSeg button').forEach(b=>b.addEventListener('click',()=>{
   document.querySelectorAll('#themeSeg button').forEach(x=>x.classList.remove('on'));
@@ -1452,6 +1525,7 @@ document.querySelectorAll('#themeSeg button').forEach(b=>{if(b.dataset.t===S.the
 function bind(id,key){const el=$(id);el.checked=S[key];el.addEventListener('change',()=>{S[key]=el.checked;store.set(key,S[key]);render();});}
 bind('optFest','fest');bind('optPay','pay');bind('optNat','nat');bind('optGreg','greg');bind('optSchool','school');bind('optSalaryShift','salaryShift');
 (function(){var sd=$('optSalaryDay');if(sd){sd.value=S.salaryDay;sd.addEventListener('change',function(){var v=parseInt(sd.value,10);if(isNaN(v))v=25;v=Math.min(28,Math.max(1,v));sd.value=v;S.salaryDay=v;store.set('salaryDay',v);render();});}})();
+(function(){var r=$('optReminder');if(r){r.value=S.reminder;r.addEventListener('change',function(){S.reminder=r.value;store.set('reminder',r.value);});}})();
 
 render();
 if(cur.y===gregToHijri(dayUTC(today.getFullYear(),today.getMonth(),today.getDate())).y)selKey=null;
