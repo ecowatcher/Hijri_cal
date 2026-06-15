@@ -247,6 +247,20 @@
   .conv-sel{border:1px solid var(--line);background:var(--surface);color:var(--ink);font-family:var(--ff);font-size:15px;padding:10px 8px;border-radius:12px;outline:none;}
   .conv-out{margin-top:11px;font-size:15px;font-weight:700;color:var(--accent-ink);background:var(--accent-soft);padding:11px 13px;border-radius:12px;text-align:center;min-height:20px;}
   .conv-out.empty{color:var(--ink3);background:var(--bg2);font-weight:500;}
+  /* Year wheel */
+  .wheel-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px 0 4px;}
+  .wheel-wrap svg{width:100%;max-width:340px;height:auto;}
+  .wheel-wrap .wh-seg{cursor:pointer;transition:opacity .12s;}
+  .wheel-wrap .wh-seg:active{opacity:.7;}
+  .wheel-hint{font-size:11.5px;color:var(--ink3);}
+  /* Year stats */
+  .stats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:4px;}
+  .stat-card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:4px;box-shadow:var(--shadow);}
+  .stat-card .st-top{display:flex;align-items:center;gap:7px;}
+  .stat-card .st-dot{width:11px;height:11px;border-radius:50%;flex:none;}
+  .stat-card .st-num{font-size:26px;font-weight:800;color:var(--ink);line-height:1;}
+  .stat-card .st-lab{font-size:12.5px;color:var(--ink2);font-weight:600;}
+  .stats-title{font-size:13px;color:var(--ink3);text-align:center;margin:2px 0 8px;}
   .mini{background:var(--surface);border-radius:22px;box-shadow:var(--shadow);padding:12px 9px 11px;cursor:pointer;transition:transform .08s;}
   .mini:active{transform:scale(.97);}
   .mini.cur{outline:2px solid var(--accent);outline-offset:-2px;}
@@ -349,7 +363,8 @@
   <div class="row"><span class="k">التاريخ الميلادي</span><span class="v" id="dsGregFull">—</span></div>
   <div class="row"><span class="k">الموسم</span><span class="v" id="dsSeason">—</span></div>
   <div class="sheet-actions">
-    <button class="btn primary" id="dsAdd">إضافة إلى التقويم (.ics)</button>
+    <button class="btn primary" id="dsShare">📷 مشاركة كصورة</button>
+    <button class="btn ghost" id="dsAdd">إضافة (.ics)</button>
     <button class="btn ghost" id="dsClose">إغلاق</button>
   </div>
 </div>
@@ -758,10 +773,15 @@ function renderYear(){
   const yg=$('yearGrid');yg.innerHTML='';
   const seg=document.createElement('div');seg.className='ov-seg';
   seg.innerHTML='<button data-ym="matrix"'+(yearMode==='matrix'?' class="on"':'')+'>شامل</button>'+
-                '<button data-ym="grid"'+(yearMode==='grid'?' class="on"':'')+'>شبكة</button>';
+                '<button data-ym="grid"'+(yearMode==='grid'?' class="on"':'')+'>شبكة</button>'+
+                '<button data-ym="wheel"'+(yearMode==='wheel'?' class="on"':'')+'>دائري</button>'+
+                '<button data-ym="stats"'+(yearMode==='stats'?' class="on"':'')+'>إحصائيات</button>';
   seg.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{yearMode=b.dataset.ym;store.set('yearMode',yearMode);renderYear();}));
   yg.appendChild(seg);
-  if(yearMode==='grid')renderYearGrid(yg); else renderOverview(yg);
+  if(yearMode==='grid')renderYearGrid(yg);
+  else if(yearMode==='wheel')renderWheel(yg);
+  else if(yearMode==='stats')renderStats(yg);
+  else renderOverview(yg);
 }
 
 function renderYearGrid(yg){
@@ -779,6 +799,99 @@ function renderYearGrid(yg){
       card.addEventListener('click',()=>{mode='month';focal=dayUTC(gy,m0,1);selKey=null;render();});
       wrap.appendChild(card);}
   }
+  yg.appendChild(wrap);
+}
+
+/* ----- Year wheel (circular months) ----- */
+const HMON_WHEEL=['محرم','صفر','ربيع ١','ربيع ٢','جمادى ١','جمادى ٢','رجب','شعبان','رمضان','شوال','ذو القعدة','ذو الحجة'];
+function polar(cx,cy,r,deg){const a=(deg-90)*Math.PI/180;return[cx+r*Math.cos(a),cy+r*Math.sin(a)];}
+function arcPath(cx,cy,rO,rI,a0,a1){
+  const [x0,y0]=polar(cx,cy,rO,a0),[x1,y1]=polar(cx,cy,rO,a1);
+  const [x2,y2]=polar(cx,cy,rI,a1),[x3,y3]=polar(cx,cy,rI,a0);
+  const large=(a1-a0)>180?1:0;
+  return`M${x0.toFixed(1)} ${y0.toFixed(1)} A${rO} ${rO} 0 ${large} 1 ${x1.toFixed(1)} ${y1.toFixed(1)} L${x2.toFixed(1)} ${y2.toFixed(1)} A${rI} ${rI} 0 ${large} 0 ${x3.toFixed(1)} ${y3.toFixed(1)} Z`;
+}
+function renderWheel(yg){
+  const hijri=refIsHijri();
+  const cx=160,cy=160,rO=150,rI=92;
+  let months=[]; // {label, color, curMonth, jump}
+  let curIdx=-1, curFrac=0, centerBig='', centerSub='';
+  if(hijri){
+    const hy=gregToHijri(focal).y;
+    for(let m=1;m<=12;m++){const b=buildMonth(hy,m);const mid=b.days[Math.floor(b.days.length/2)].greg;
+      months.push({label:HMON_WHEEL[m-1],color:seasonLine(mid),jump:firstGregOfHijri(hy,m)});}
+    if(hy===cur.y){curIdx=cur.m-1;const dim=buildMonth(hy,cur.m).days.length;curFrac=(cur.d-0.5)/dim;}
+    centerBig=arNum(cur.d); centerSub=HMONTHS[cur.m-1];
+  }else{
+    const gy=focal.getUTCFullYear();
+    for(let m0=0;m0<12;m0++){const mid=dayUTC(gy,m0,15);
+      months.push({label:GMONTHS[m0],color:seasonLine(mid),jump:dayUTC(gy,m0,1)});}
+    if(gy===today.getFullYear()){curIdx=today.getMonth();const dim=new Date(gy,today.getMonth()+1,0).getDate();curFrac=(today.getDate()-0.5)/dim;}
+    centerBig=String(today.getDate()); centerSub=GMONTHS[today.getMonth()];
+  }
+  let segs='',labels='';
+  for(let i=0;i<12;i++){
+    const a0=i*30,a1=a0+30,mid=a0+15;
+    const isCur=(i===curIdx);
+    const col=months[i].color;
+    segs+='<path class="wh-seg" data-i="'+i+'" d="'+arcPath(cx,cy,rO,rI,a0,a1)+'" fill="'+col+'" fill-opacity="'+(isCur?'0.95':'0.20')+'" stroke="var(--surface)" stroke-width="2"></path>';
+    const [lx,ly]=polar(cx,cy,(rO+rI)/2,mid);
+    labels+='<text x="'+lx.toFixed(1)+'" y="'+(ly+3.5).toFixed(1)+'" text-anchor="middle" font-size="10" font-weight="700" fill="'+(isCur?'#fff':'var(--ink)')+'">'+months[i].label+'</text>';
+  }
+  // today marker
+  let marker='';
+  if(curIdx>=0){const ang=curIdx*30+curFrac*30;const [mx,my]=polar(cx,cy,rO+9,ang);const [bx,by]=polar(cx,cy,rO,ang);
+    marker='<circle cx="'+mx.toFixed(1)+'" cy="'+my.toFixed(1)+'" r="6" fill="var(--accent)"></circle>'+
+           '<line x1="'+mx.toFixed(1)+'" y1="'+my.toFixed(1)+'" x2="'+bx.toFixed(1)+'" y2="'+by.toFixed(1)+'" stroke="var(--accent)" stroke-width="2.5"></line>';}
+  const wrap=document.createElement('div');wrap.className='wheel-wrap';
+  wrap.innerHTML='<svg viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg">'+
+    segs+labels+marker+
+    '<circle cx="160" cy="160" r="'+(rI-6)+'" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5"></circle>'+
+    '<text x="160" y="150" text-anchor="middle" font-size="40" font-weight="800" fill="var(--ink)">'+centerBig+'</text>'+
+    '<text x="160" y="178" text-anchor="middle" font-size="15" font-weight="700" fill="var(--accent-ink)">'+centerSub+'</text>'+
+    (curIdx>=0?'<text x="160" y="198" text-anchor="middle" font-size="11" fill="var(--ink3)">اليوم</text>':'')+
+    '</svg><div class="wheel-hint">اضغط أي شهر لفتحه</div>';
+  wrap.querySelectorAll('.wh-seg').forEach(p=>p.addEventListener('click',()=>{
+    const i=+p.dataset.i;mode='month';focal=months[i].jump;selKey=null;render();}));
+  yg.appendChild(wrap);
+}
+
+/* ----- Year statistics ----- */
+function renderStats(yg){
+  const hijri=refIsHijri();
+  let days=[],label='';
+  if(hijri){const hy=gregToHijri(focal).y;label=arNum(hy)+' هـ';
+    for(let m=1;m<=12;m++)buildMonth(hy,m).days.forEach(o=>days.push({greg:o.greg,h:{d:o.hd,m,y:hy}}));}
+  else{const gy=focal.getUTCFullYear();label=gy+' م';
+    for(let m0=0;m0<12;m0++)buildGregMonth(gy,m0).days.forEach(dt=>days.push({greg:dt,h:gregToHijri(dt)}));}
+  let nFest=0,nNat=0,nPay=0,nSchool=0,nWeekend=0,nUser=0,nLeaveDays=0,nNotes=0;
+  days.forEach(o=>{
+    const evs=eventsFor(o.h,o.greg);
+    if(evs.some(e=>e.type==='f'))nFest++;
+    if(evs.some(e=>e.type==='n'))nNat++;
+    if(evs.some(e=>e.type==='p'))nPay++;
+    if(evs.some(e=>e.type==='u'))nUser+=evs.filter(e=>e.type==='u').length;
+    if(isSchool(o.h,o.greg))nSchool++;
+    const wd=o.greg.getUTCDay();if(wd===5||wd===6)nWeekend++;
+    if(leaveAt(o.greg))nLeaveDays++;
+    if(dayNotes[gkey(o.greg)])nNotes++;
+  });
+  const cards=[
+    {n:days.length,l:'إجمالي الأيام',c:'var(--accent)'},
+    {n:nSchool,l:'أيام إجازات المدارس',c:'#00a7e2'},
+    {n:nWeekend,l:'أيام نهاية الأسبوع',c:'var(--weekend-ink)'},
+    {n:nPay,l:'مرّات صرف الرواتب',c:'var(--pay)'},
+    {n:nFest,l:'مناسبات دينية',c:'var(--fest)'},
+    {n:nNat,l:'مناسبات وطنية',c:'var(--nat)'},
+    {n:nUser,l:'مناسباتي الخاصة',c:'#7c4dff'},
+    {n:nLeaveDays,l:'أيام إجازاتي',c:'#d9822b'},
+    {n:nNotes,l:'أيام بها ملاحظات',c:'var(--ink3)'},
+  ];
+  const wrap=document.createElement('div');
+  let html='<div class="stats-title">إحصائيات عام '+label+'</div><div class="stats-grid">';
+  cards.forEach(c=>{html+='<div class="stat-card"><div class="st-top"><span class="st-dot" style="background:'+c.c+'"></span><span class="st-num">'+arNum(c.n)+'</span></div><div class="st-lab">'+c.l+'</div></div>';});
+  html+='</div>';
+  wrap.innerHTML=html;
   yg.appendChild(wrap);
 }
 
@@ -995,6 +1108,72 @@ $('dsAdd').addEventListener('click',()=>{
   const summary=evs.length?evs.map(e=>e.label).join(' · '):hijriLabel;
   shareOrDownloadICS('day-'+icsDate(dt)+'.ics',buildICS([{greg:dt,summary,desc:hijriLabel+' — '+gregLabel}]))
     .then(ok=>{if(ok)toast('جاهز — اختر تطبيق التقويم لإضافته');});
+});
+
+/* share the day as a styled image */
+function roundRect(ctx,x,y,w,hh,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+hh,r);ctx.arcTo(x+w,y+hh,x,y+hh,r);ctx.arcTo(x,y+hh,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+function drawShareImage(h,dt){
+  const W=1080,H=1350;const cv=document.createElement('canvas');cv.width=W;cv.height=H;
+  const ctx=cv.getContext('2d');
+  const g=ctx.createLinearGradient(0,0,W,H);g.addColorStop(0,'#0b1f3a');g.addColorStop(1,'#0a4a86');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  // decorative arcs
+  ctx.strokeStyle='rgba(255,255,255,.08)';ctx.lineWidth=2;
+  for(let i=0;i<3;i++){ctx.beginPath();ctx.arc(W-60,140,180+i*70,0,Math.PI*2);ctx.stroke();}
+  ctx.fillStyle='rgba(0,167,226,.18)';ctx.beginPath();ctx.arc(120,H-120,160,0,Math.PI*2);ctx.fill();
+  ctx.direction='rtl';ctx.textAlign='center';
+  const cx=W/2;
+  // header
+  ctx.fillStyle='rgba(255,255,255,.8)';ctx.font='600 38px system-ui,"Segoe UI"';
+  ctx.fillText('☾ التقويم الهجري · أم القرى',cx,150);
+  // season chip
+  const ses=seasonOf(dt.getUTCMonth(),dt.getUTCDate());const sc=seasonLine(dt);
+  ctx.font='700 34px system-ui';const sw=ctx.measureText(ses.i+' '+ses.n).width+70;
+  ctx.fillStyle=sc;roundRect(ctx,cx-sw/2,210,sw,64,32);ctx.fill();
+  ctx.fillStyle='#fff';ctx.fillText(ses.i+' '+ses.n,cx,254);
+  // big hijri
+  ctx.fillStyle='#fff';ctx.font='800 150px system-ui';ctx.fillText(arNum(h.d),cx,470);
+  ctx.font='800 80px system-ui';ctx.fillText(HMONTHS[h.m-1],cx,580);
+  ctx.font='600 56px system-ui';ctx.fillStyle='rgba(255,255,255,.85)';ctx.fillText(arNum(h.y)+' هـ',cx,660);
+  // divider
+  ctx.strokeStyle='rgba(255,255,255,.25)';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(cx-260,720);ctx.lineTo(cx+260,720);ctx.stroke();
+  // gregorian + weekday
+  ctx.fillStyle='#cfe3f5';ctx.font='600 54px system-ui';
+  ctx.fillText(WDAYS[dt.getUTCDay()],cx,800);
+  ctx.font='500 46px system-ui';ctx.fillStyle='rgba(255,255,255,.8)';
+  ctx.fillText(dt.getUTCDate()+' '+GMONTHS[dt.getUTCMonth()]+' '+dt.getUTCFullYear()+' م',cx,870);
+  // events
+  const evs=eventsFor(h,dt).slice(0,3);const Lv=leaveAt(dt);
+  let yy=980;
+  const items=[];
+  evs.forEach(e=>items.push({t:e.label,c:e.type==='n'?'#ff6b6b':(e.type==='f'?'#43bda7':(e.type==='p'?'#cbd5e1':mcol(e.c||'v')))}));
+  if(Lv)items.push({t:'🏖 '+Lv.t,c:lcol(Lv.c).dot});
+  const note=dayNotes[gkey(dt)];
+  items.slice(0,4).forEach(it=>{
+    ctx.fillStyle=it.c;ctx.beginPath();ctx.arc(cx+300,yy-14,12,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#fff';ctx.font='600 42px system-ui';ctx.fillText(it.t,cx,yy);yy+=72;});
+  if(note){ctx.fillStyle='rgba(255,255,255,.7)';ctx.font='italic 38px system-ui';
+    const nt=note.length>60?note.slice(0,60)+'…':note;ctx.fillText('📝 '+nt,cx,yy);}
+  // footer
+  ctx.fillStyle='rgba(255,255,255,.45)';ctx.font='500 32px system-ui';
+  ctx.fillText('ecowatcher.github.io/Hijri_cal',cx,H-70);
+  return cv;
+}
+$('dsShare').addEventListener('click',async ()=>{
+  if(!sheetDay)return;const {h,dt}=sheetDay;
+  let cv;try{cv=drawShareImage(h,dt);}catch(e){toast('تعذّر إنشاء الصورة');return;}
+  cv.toBlob(async(blob)=>{
+    if(!blob){toast('تعذّر إنشاء الصورة');return;}
+    const fname='hijri-'+icsDate(dt)+'.png';
+    let file=null;try{file=new File([blob],fname,{type:'image/png'});}catch(e){}
+    if(file && navigator.canShare && navigator.canShare({files:[file]})){
+      try{await navigator.share({files:[file],title:'التقويم الهجري'});return;}
+      catch(e){if(e&&e.name==='AbortError')return;}
+    }
+    try{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fname;
+      document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(a.href);},500);
+      toast('تم حفظ الصورة');}catch(e){toast('تعذّر الحفظ');}
+  },'image/png');
 });
 
 /* add custom event for the open day */
