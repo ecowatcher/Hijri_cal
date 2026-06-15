@@ -461,7 +461,7 @@
   <div class="sheet-actions">
     <button class="btn ghost" id="setClose" style="flex:1;">تم</button>
   </div>
-  <div style="text-align:center;color:var(--ink3);font-size:11px;margin-top:10px;">التقويم الهجري · أم القرى — الإصدار ٤٫٠</div>
+  <div style="text-align:center;color:var(--ink3);font-size:11px;margin-top:10px;">التقويم الهجري · أم القرى — الإصدار ٤٫١</div>
 </div>
 
 <!-- Prayer-times settings sheet -->
@@ -1137,9 +1137,11 @@ function renderMonth(){
     $('subTitle').textContent=gy+' م · '+hr+' هـ';
     $('mlText').textContent=GMONTHS[gm0]+' '+gy;
   }
-  // season
-  const mid=cells[Math.floor(cells.length/2)].greg;const ses=seasonOf(mid.getUTCMonth(),mid.getUTCDate());
-  const sc=$('seasonChip');sc.hidden=false;sc.innerHTML=ses.i+' الموسم: <b>'+ses.n+'</b>';
+  // season — reflect the month's real span (first→last day); show transition if it crosses seasons
+  const sF=seasonOf(cells[0].greg.getUTCMonth(),cells[0].greg.getUTCDate());
+  const sL=seasonOf(cells[cells.length-1].greg.getUTCMonth(),cells[cells.length-1].greg.getUTCDate());
+  const sc=$('seasonChip');sc.hidden=false;
+  sc.innerHTML=(sF.n===sL.n)?(sF.i+' الموسم: <b>'+sF.n+'</b>'):(sF.i+' الموسم: <b>'+sF.n+' ← '+sL.n+'</b>');
   // dow
   const dow=$('dow');dow.innerHTML='';
   for(let i=0;i<7;i++){const s=document.createElement('span');s.textContent=WSHORT[i];if(i===5||i===6)s.className='we';dow.appendChild(s);}
