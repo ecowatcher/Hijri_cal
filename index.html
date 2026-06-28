@@ -55,6 +55,11 @@
     background:transparent;color:var(--ink);font-size:20px;display:grid;place-items:center;
     cursor:pointer;transition:background .15s;}
   .icon-btn:active{background:var(--bg2);}
+  .title-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:6px;}
+  .title-row .bigtitle{margin:0 4px;}
+  .title-actions{display:flex;gap:5px;align-items:center;flex-shrink:0;}
+  .icon-btn.lg{width:46px;height:46px;font-size:22px;background:var(--surface2);border-radius:14px;}
+  .icon-btn.lg:active{background:var(--bg2);}
   .bigtitle{font-size:34px;font-weight:700;letter-spacing:-.5px;margin:10px 4px 0;line-height:1.15;}
   .subtitle{font-size:14.5px;color:var(--ink2);margin:4px 4px 0;font-weight:400;}
   .season{display:inline-flex;align-items:center;gap:6px;margin:10px 4px 0;
@@ -357,13 +362,16 @@
   <header>
     <div class="topbar">
       <span class="app-name">التقويم الهجري · أم القرى</span>
-      <div style="display:flex;gap:2px;">
-        <button class="icon-btn" id="btnSearch" aria-label="بحث">🔍</button>
-        <button class="icon-btn" id="viewToggle" aria-label="عرض السنة">▦</button>
-        <button class="icon-btn" id="btnSettings" aria-label="الإعدادات">⚙</button>
+    </div>
+    <div class="title-row">
+      <div class="bigtitle" id="bigTitle">—</div>
+      <div class="title-actions">
+        <button class="icon-btn lg" id="btnSearch" aria-label="بحث">🔍</button>
+        <button class="icon-btn lg" id="viewToggle" aria-label="عرض السنة">▦</button>
+        <button class="icon-btn lg" id="btnConvert" aria-label="محوّل وحاسبة التواريخ">📅</button>
+        <button class="icon-btn lg" id="btnSettings" aria-label="الإعدادات">⚙</button>
       </div>
     </div>
-    <div class="bigtitle" id="bigTitle">—</div>
     <div class="subtitle" id="subTitle">—</div>
     <div class="season" id="seasonChip" hidden></div>
   </header>
@@ -504,7 +512,7 @@
   <div class="sheet-actions">
     <button class="btn ghost" id="setClose" style="flex:1;">تم</button>
   </div>
-  <div style="text-align:center;color:var(--ink3);font-size:11px;margin-top:10px;">التقويم الهجري · أم القرى — الإصدار ٤٫٤</div>
+  <div style="text-align:center;color:var(--ink3);font-size:11px;margin-top:10px;">التقويم الهجري · أم القرى — الإصدار ٤٫٥</div>
 </div>
 
 <!-- Prayer-times settings sheet -->
@@ -1577,6 +1585,7 @@ function openConverter(){closeSheets();fillConvMonths();
   $('convD1').value=isoKey(t);$('convD2').value=isoKey(t);
   convFromGreg();convFromHijri();convDiff();openSheet('convSheet');}
 $('rowConvert').addEventListener('click',openConverter);
+(function(){var b=document.getElementById('btnConvert');if(b)b.addEventListener('click',openConverter);})();
 $('convClose').addEventListener('click',closeSheets);
 $('convG').addEventListener('change',convFromGreg);
 ['convHY','convHM','convHD'].forEach(id=>$(id).addEventListener('input',convFromHijri));
